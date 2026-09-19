@@ -179,7 +179,7 @@ This provides an early indication that a simple linear model may not adequately 
 **Figure 1 — Hourly rental demand — raw vs. log-transformed**
 
 ```text
-![Hourly rental demand](images/hourly-demand-distribution.png)
+![Hourly rental demand](images/01_demand_distribution.png)
 ```
 
 ---
