@@ -174,13 +174,14 @@ The original hourly rental demand is strongly right-skewed. A `log1p` transforma
 
 This provides an early indication that a simple linear model may not adequately represent the response distribution.
 
-### Figure to add
 
-**Figure 1 — Hourly rental demand — raw vs. log-transformed**
+<p align="center">
+  <img src="images/01_demand_distribution.png" alt="demand_distribution" width="500">
+</p>
 
-```text
-![Hourly rental demand](images/01_demand_distribution.png)
-```
+<p align="center">
+  <strong>Figure 1 — Hourly rental demand — raw vs. log-transformed </strong>
+</p>
 
 ---
 
@@ -197,15 +198,14 @@ Registered-user demand shows a pronounced bimodal pattern around typical commuti
 
 The analysis also compares the two user groups between working and non-working days.
 
-### Figure to add
 
-**Figure 2 — Average hourly rentals by user type and total rentals by user type**
+<p align="center">
+  <img src="images/02_casual_vs_registered.png" alt="images/02_casual_vs_registered" width="500">
+</p>
 
-```text
-![Casual vs registered users](images/casual-vs-registered.png)
-```
-
----
+<p align="center">
+  <strong>Figure 2 — Average hourly rentals by user type and total rentals by user type </strong>
+</p>
 
 # 3. Temporal Demand Patterns
 
@@ -222,37 +222,39 @@ Several temporal dimensions are investigated:
 
 Working days show a distinct bimodal demand structure, while non-working days show a broader midday peak.
 
+<p align="center">
+  <img src="images/03_hourly_patterns.png" alt="images/03_hourly_patterns" width="500">
+</p>
+
+<p align="center">
+  <strong> Figure 3 — Hourly demand by working-day status and average demand by weekday </strong>
+</p>
+
 ## Monthly and Seasonal Pattern
 
 Average demand generally increases toward the warmer months and decreases toward the end of the year.
 
 Seasonal demand also differs substantially, with higher demand observed during summer and fall relative to spring.
+<p align="center">
+  <img src="images/month and season.png" alt="images/month and season" width="500">
+</p>
+
+<p align="center">
+  <strong> Figure 4 — Average demand by month and rental demand by season </strong>
+</p>
 
 ## Yearly Trend
 
 Daily aggregate demand shows an overall upward trend with recurring seasonal variation. Demand in 2012 is also generally higher than in 2011.
 
-### Figures to add
 
-**Figure 3 — Hourly demand by working-day status and average demand by weekday**
+<p align="center">
+  <img src="images/daily and year.png" alt="images/daily and year" width="500">
+</p>
 
-```text
-![Temporal hourly patterns](images/workingday-weekday-patterns.png)
-```
-
-**Figure 4 — Average demand by month and rental demand by season**
-
-```text
-![Monthly and seasonal demand](images/month-season-patterns.png)
-```
-
-**Figure 5 — Daily total rental demand and demand by year**
-
-```text
-![Long-term demand trend](images/daily-yearly-demand.png)
-```
-
----
+<p align="center">
+  <strong> Figure 5 — Daily total rental demand and demand by year </strong>
+</p>
 
 # 4. Weather Effects
 
@@ -269,21 +271,24 @@ Temperature shows a positive but nonlinear relationship with demand, while humid
 
 Windspeed shows comparatively weak visual association with rental demand.
 
-### Figures to add
 
-**Figure 6 — Rental demand by weather condition and temperature**
 
-```text
-![Weather and temperature](images/weather-temperature.png)
-```
+<p align="center">
+  <img src="images/04_weather_effects.png" alt="images/04_weather_effects" width="500">
+</p>
 
-**Figure 7 — Rental demand vs. humidity and windspeed**
+<p align="center">
+  <strong> Figure 6 — Rental demand by weather condition and temperature </strong>
+</p>
 
-```text
-![Humidity and windspeed](images/humidity-windspeed.png)
-```
 
----
+<p align="center">
+  <img src="images/hum and wind.png" alt="images/hum and wind" width="500">
+</p>
+
+<p align="center">
+  <strong> Figure 7 — Rental demand vs. humidity and windspeed </strong>
+</p>
 
 # 5. Statistical Analysis
 
@@ -314,15 +319,14 @@ Both variables also produce very high VIF values.
 
 Therefore, `atemp` is excluded from the forecasting feature set because it carries almost redundant information with `temp`.
 
-### Figure to add
 
-**Figure 8 — Pearson correlation, Spearman correlation, and VIF diagnostics**
+<p align="center">
+  <img src="images/05_correlation_vif.png" alt="images/05_correlation_vif" width="500">
+</p>
 
-```text
-![Correlation and VIF diagnostics](images/correlation-vif.png)
-```
-
----
+<p align="center">
+  <strong> Figure 8 — Pearson correlation, Spearman correlation, and VIF diagnostics </strong>
+</p>
 
 # 6. Categorical Variable Analysis
 
@@ -363,15 +367,15 @@ Although quadratic terms provide small improvements in R² and AIC, the improvem
 
 This indicates that nonlinear transformations of weather variables alone are unlikely to explain the majority of demand variation.
 
-### Figure to add
 
-**Figure 9 — Mean rental count across temperature, humidity, and windspeed bins**
+<p align="center">
+  <img src="images/06_nonlinearity.png" alt="images/06_nonlinearity" width="500">
+</p>
 
-```text
-![Non-linearity analysis](images/nonlinearity-analysis.png)
-```
+<p align="center">
+  <strong> Figure 9 — Mean rental count across temperature, humidity, and windspeed bins </strong>
+</p>
 
----
 
 # 8. Binary Predictor Analysis
 
@@ -414,15 +418,15 @@ A **Negative Binomial GLM** is therefore used as the statistical count-regressio
 
 The model uses the base temporal, calendar, and weather features.
 
-### Figure to add
 
-**Figure 10 — OLS residuals vs. fitted values and Q-Q plot**
+<p align="center">
+  <img src="images/07_ols_diagnostics.png" alt="images/07_ols_diagnostics.png" width="500">
+</p>
 
-```text
-![Regression diagnostics](images/ols-diagnostics.png)
-```
+<p align="center">
+  <strong> Figure 10 — OLS residuals vs. fitted values and Q-Q plot </strong>
+</p>
 
----
 
 # 10. Forecasting Feature Selection
 
@@ -710,15 +714,15 @@ The comparison uses:
 
 The visualization uses the recursive forecasting predictions rather than predictions generated using future test targets.
 
-### Figure to add
 
-**Figure 11 — Actual vs. predicted hourly counts for the top-3 models**
+<p align="center">
+  <img src="images/08_forecast_results.png" alt="images/08_forecast_results.png" width="500">
+</p>
 
-```text
-![Actual vs predicted](images/actual-vs-predicted-top3.png)
-```
+<p align="center">
+  <strong> Figure 11 — Actual vs. predicted hourly counts for the top-3 models </strong>
+</p>
 
----
 
 # 19. Key Technical Decisions
 
