@@ -176,7 +176,7 @@ This provides an early indication that a simple linear model may not adequately 
 
 
 <p align="center">
-  <img src="images/01_demand_distribution.png" alt="demand_distribution" width="500">
+  <img src="images/01_demand_distribution.png" alt="demand_distribution">
 </p>
 
 <p align="center">
