@@ -200,7 +200,7 @@ The analysis also compares the two user groups between working and non-working d
 
 
 <p align="center">
-  <img src="images/02_casual_vs_registered.png" alt="images/02_casual_vs_registered" width="500">
+  <img src="images/02_casual_vs_registered.png" alt="images/02_casual_vs_registered">
 </p>
 
 <p align="center">
@@ -223,7 +223,7 @@ Several temporal dimensions are investigated:
 Working days show a distinct bimodal demand structure, while non-working days show a broader midday peak.
 
 <p align="center">
-  <img src="images/03_hourly_patterns.png" alt="images/03_hourly_patterns" width="500">
+  <img src="images/03_hourly_patterns.png" alt="images/03_hourly_patterns">
 </p>
 
 <p align="center">
@@ -236,7 +236,7 @@ Average demand generally increases toward the warmer months and decreases toward
 
 Seasonal demand also differs substantially, with higher demand observed during summer and fall relative to spring.
 <p align="center">
-  <img src="images/month and season.png" alt="images/month and season" width="500">
+  <img src="images/month and season.png" alt="images/month and season">
 </p>
 
 <p align="center">
@@ -249,7 +249,7 @@ Daily aggregate demand shows an overall upward trend with recurring seasonal var
 
 
 <p align="center">
-  <img src="images/daily and year.png" alt="images/daily and year" width="500">
+  <img src="images/daily and year.png" alt="images/daily and year">
 </p>
 
 <p align="center">
@@ -274,7 +274,7 @@ Windspeed shows comparatively weak visual association with rental demand.
 
 
 <p align="center">
-  <img src="images/04_weather_effects.png" alt="images/04_weather_effects" width="500">
+  <img src="images/04_weather_effects.png" alt="images/04_weather_effects">
 </p>
 
 <p align="center">
@@ -283,7 +283,7 @@ Windspeed shows comparatively weak visual association with rental demand.
 
 
 <p align="center">
-  <img src="images/hum and wind.png" alt="images/hum and wind" width="500">
+  <img src="images/hum and wind.png" alt="images/hum and wind">
 </p>
 
 <p align="center">
@@ -321,7 +321,7 @@ Therefore, `atemp` is excluded from the forecasting feature set because it carri
 
 
 <p align="center">
-  <img src="images/05_correlation_vif.png" alt="images/05_correlation_vif" width="500">
+  <img src="images/05_correlation_vif.png" alt="images/05_correlation_vif">
 </p>
 
 <p align="center">
@@ -369,7 +369,7 @@ This indicates that nonlinear transformations of weather variables alone are unl
 
 
 <p align="center">
-  <img src="images/06_nonlinearity.png" alt="images/06_nonlinearity" width="500">
+  <img src="images/06_nonlinearity.png" alt="images/06_nonlinearity">
 </p>
 
 <p align="center">
@@ -420,7 +420,7 @@ The model uses the base temporal, calendar, and weather features.
 
 
 <p align="center">
-  <img src="images/07_ols_diagnostics.png" alt="images/07_ols_diagnostics.png" width="500">
+  <img src="images/07_ols_diagnostics.png" alt="images/07_ols_diagnostics.png">
 </p>
 
 <p align="center">
@@ -716,7 +716,7 @@ The visualization uses the recursive forecasting predictions rather than predict
 
 
 <p align="center">
-  <img src="images/08_forecast_results.png" alt="images/08_forecast_results.png" width="500">
+  <img src="images/08_forecast_results.png" alt="images/08_forecast_results.png">
 </p>
 
 <p align="center">
