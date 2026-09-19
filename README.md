@@ -6,107 +6,840 @@
 
 ---
 
-## Abstract
+# Capital Bikeshare Demand Analysis & Forecasting
 
-Urban bike-sharing systems generate high-resolution behavioral data that make it possible to study how time, weather, and rider type jointly shape demand for shared mobility. This study analyzes 17,379 hourly rental records from Capital Bikeshare (Washington, D.C., January 2011 – December 2012) to (i) characterize the empirical structure of rental demand, (ii) identify and statistically validate its principal drivers, and (iii) build and evaluate a demand-forecasting pipeline under a realistic, leakage-controlled train/test regime. The analysis shows that hourly demand is a right-skewed, over-dispersed count process rather than a continuous Gaussian one, that registered and casual riders exhibit structurally different temporal signatures (commute-driven vs. leisure-driven), and that gradient-boosted trees substantially outperform a Negative Binomial regression baseline for forecasting (test RMSE 59.5 vs. 110.8; R² 0.89 vs. 0.63).
+## Technical Assessment — Part 1
 
-## Motivation & Research Questions
+An end-to-end analysis of hourly Capital Bikeshare demand combining **exploratory data analysis, statistical inference, regression diagnostics, leakage-aware temporal feature engineering, and machine-learning-based demand forecasting**.
 
-Bike-share operators face two related but distinct problems: understanding *why* demand fluctuates (for planning, pricing, and communication) and *predicting* how much demand to expect in a given hour (for rebalancing and capacity decisions). This project treats both as first-class questions rather than treating prediction as the only goal:
+The project investigates how temporal, calendar, weather, and historical-demand patterns influence hourly bicycle rentals and evaluates forecasting models under a chronological train/test protocol.
 
-1. **RQ1 — Structure:** What is the shape of hourly rental demand, and does it depart from assumptions that a naive analysis (e.g., linear regression) would make?
-2. **RQ2 — Drivers:** Which temporal and weather variables are statistically associated with demand, how strong are these associations, and what statistical issues (multicollinearity, non-linearity, distributional mismatch) does an analyst need to account for?
-3. **RQ3 — Forecastability:** Under a train/test split that mimics an operational forecasting setting — predicting the last third of every month from the first two-thirds — how much of the variance in hourly demand can be recovered, and which features actually help?
+---
 
-## Dataset
+## Project Overview
 
-The [UCI Bike Sharing Dataset](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset) provides hourly and daily rental logs from Capital Bikeshare. This study uses the hourly table (`hour.csv`): 17,379 observations, 17 fields, spanning 2011-01-01 to 2012-12-31, with **no missing values and no duplicate rows**. Weather covariates (`temp`, `atemp`, `hum`, `windspeed`) are min-max normalized to [0, 1] in the source data. Each row records the count of rentals initiated by casual (non-registered) and registered users in a given hour, along with calendar flags (season, holiday, working day, weekday, month, year) and weather conditions (situation code, temperature, feels-like temperature, humidity, wind speed). As a first integrity check, `casual + registered` was verified to equal `cnt` for all 17,379 rows, confirming the two rider segments are exhaustive and additive components of total demand.
+This project uses the **UCI Bike Sharing Dataset** to analyze hourly bicycle rental demand over a two-year period.
 
-## Working Process
+The analysis is structured around three objectives:
 
-The analysis was carried out as a single, linear notebook pipeline (`notebooks/bike_sharing_analysis.ipynb`), organized into three stages that mirror the research questions above:
+1. **Descriptive & Exploratory Analysis**
 
-**Stage 1 — Data audit and exploratory analysis.** After loading and type-casting the hourly and daily tables, the data was profiled for completeness, duplication, and range validity before any modeling assumption was made. Distributional shape, user-segment behavior, and temporal/weather patterns were then examined visually and numerically, in that order, so that later modeling choices (e.g., using a count-regression family rather than OLS) were motivated by evidence rather than assumed upfront.
+   * Examine the distribution of hourly rental demand.
+   * Compare casual and registered users.
+   * Identify hourly, weekly, monthly, seasonal, and yearly patterns.
+   * Investigate the relationship between rental demand and weather conditions.
 
-**Stage 2 — Statistical and regression analysis.** Continuous predictors were screened for redundancy (Pearson/Spearman correlation, variance inflation factors) before being entered into a model, categorical predictors were tested with one-way ANOVA, and each continuous predictor's functional form was checked for non-linearity via decile-binned linear-vs-quadratic fits. Three regression specifications were then fit and compared on diagnostic grounds — OLS, Poisson GLM, and Negative Binomial GLM — to identify the model whose distributional assumptions actually match the data-generating process of hourly rental counts.
+2. **Statistical & Regression Analysis**
 
-**Stage 3 — Forecasting under a realistic evaluation protocol.** Rather than a single chronological train/test cut, the assessment specified a **within-month** split: days 1–20 of every month for training, days 21 through month-end for testing, repeated across both years. This creates many short, interleaved train/test blocks rather than one long horizon, which makes it easy to accidentally leak information (e.g., a "yesterday's demand" feature computed carelessly could pull in test-period values from a different month's training block). To avoid this, lag and rolling-window features were computed from a copy of the target series with all test-period values masked to `NaN` *before* any shift or rolling operation, and test-set inference was performed with a **recursive multi-step forecast**: predictions for each test hour are generated in chronological order and fed back into the feature-construction step for subsequent hours, so that no model ever sees a real held-out target when building its own features. A statistical baseline (Negative Binomial GLM, refit on the training partition only) and seven XGBoost feature-set variants (no lags; 24-hour and 168-hour lags; 24-hour and 168-hour rolling means; and combinations) were then trained and compared on identical test data.
+   * Assess relationships between continuous variables and rental demand.
+   * Investigate multicollinearity using correlation analysis and VIF.
+   * Test categorical predictors using one-way ANOVA.
+   * Evaluate binary predictors using Welch's t-test.
+   * Examine non-linearity using linear vs. quadratic models.
+   * Diagnose OLS and Poisson regression assumptions.
+   * Establish a Negative Binomial GLM as a count-regression baseline.
 
-## Findings by Task
+3. **Demand Forecasting & Predictive Modeling**
 
-### Task 1 — Descriptive Statistics & Exploratory Analysis
+   * Construct a leakage-aware temporal train/test split.
+   * Engineer historical demand features.
+   * Compare XGBoost models using different temporal feature sets.
+   * Evaluate models using MAE, RMSE, and R².
+   * Perform recursive multi-step forecasting without using future test-set target values.
 
-**Observation 1 — Demand is a skewed count variable, not a bell-shaped continuous one.** Hourly rental count has mean 189.5, median 142, variance ≈ 32,901, and skewness 1.28. The raw distribution (Figure 1, left) shows a long right tail driven by a relatively small number of very high-demand hours — rush-hour commutes and pleasant-weather afternoons — sitting above a much larger mass of quiet overnight hours. A log(1+cnt) transform (Figure 1, right) visibly symmetrizes the distribution. This single observation has downstream consequences: it is the empirical motivation for treating `cnt` as a count outcome in Task 2 rather than modeling it with ordinary least squares.
+---
 
-<p align="center">
-  <img src="images/01_demand_distribution.png" width="720" alt="Distribution of hourly rental demand">
-  <br><em>Figure 1. Hourly rental demand is right-skewed (left); a log transform brings it closer to symmetric (right).</em>
-</p>
+# Dataset
 
-**Observation 2 — Registered and casual riders are behaviorally distinct populations, not scaled versions of each other.** Registered users account for 2,672,662 rentals (81.2% of total volume) against 620,017 (18.8%) for casual users, but the more interesting finding is *shape*, not just *share*. Figure 2 (left) shows registered rentals following a sharp bimodal profile with peaks at 08:00 and 17:00–18:00 — a commuting signature — while casual rentals rise gradually across the morning and peak broadly in the early-to-mid afternoon, consistent with leisure or tourist use. This is corroborated by the working-day breakdown: average casual rentals fall from 57.4/hour on non-working days to 25.6/hour on working days, while registered rentals rise from 124.0/hour to 167.6/hour — the two segments move in *opposite* directions as the day type changes, which is strong evidence that they are driven by different underlying activities rather than a common demand process scaled up or down.
+The project uses the **UCI Bike Sharing Dataset**, specifically the hourly rental data.
 
-<p align="center">
-  <img src="images/02_casual_vs_registered.png" width="720" alt="Casual vs registered rental patterns">
-  <br><em>Figure 2. Average hourly rentals by user type (left) and total rental volume by user type (right).</em>
-</p>
+The hourly dataset contains:
 
-**Observation 3 — Temporal structure is hierarchical: hour-of-day dominates, day-of-week is comparatively weak.** Figure 3 (left) confirms the working-day vs. non-working-day divergence at the hourly level: working days show the commute double-peak, while non-working days show a single, broader midday hump. Figure 3 (right) shows average demand by weekday is comparatively flat — a pattern later confirmed statistically (Section: Task 2), where weekday's ANOVA F-statistic (3.49) is an order of magnitude smaller than hour-of-day's (759.09). The interpretation is that *which hour it is* matters far more to demand than *which day of the week it is* — the within-day rhythm dominates the across-week rhythm.
+* **17,379 observations**
+* **17 original fields**
+* Data spanning **2011-01-01 to 2012-12-31**
+* No missing values
+* No duplicate rows
 
-<p align="center">
-  <img src="images/03_hourly_patterns.png" width="720" alt="Hourly demand patterns">
-  <br><em>Figure 3. Hourly demand by working-day status (left) and average demand by day of week (right).</em>
-</p>
+The target variable is:
 
-**Observation 4 — Demand responds monotonically, and asymmetrically, to weather.** Figure 4 (left) shows median rental count declining step-wise as weather conditions worsen (clear → mist/cloudy → light precipitation → heavy precipitation), with the heavy-rain/snow category both rare in the data and associated with visibly suppressed demand. Figure 4 (right) shows a broadly increasing but saturating relationship between normalized temperature and rentals — demand keeps climbing with temperature before leveling off at the highest values, foreshadowing the mild non-linearity quantified later in Task 2.
+```text
+cnt = casual + registered
+```
 
-<p align="center">
-  <img src="images/04_weather_effects.png" width="720" alt="Weather effects on demand">
-  <br><em>Figure 4. Rental demand by weather condition (left) and against normalized temperature (right).</em>
-</p>
+### Main variable groups
 
-### Task 2 — Statistical & Regression Analysis
+| Group     | Variables                                         |
+| --------- | ------------------------------------------------- |
+| Temporal  | `dteday`, `hr`, `weekday`, `mnth`, `yr`           |
+| Calendar  | `season`, `holiday`, `workingday`                 |
+| Weather   | `weathersit`, `temp`, `atemp`, `hum`, `windspeed` |
+| User type | `casual`, `registered`                            |
+| Target    | `cnt`                                             |
 
-**Observation 5 — `temp` and `atemp` are near-collinear and cannot both be used as independent predictors.** Figure 5 reports Pearson and Spearman correlation heatmaps alongside variance inflation factors for the continuous predictors. Both `temp` and `atemp` carry VIFs above 43 — far past the conventional concern threshold of 5–10 — because "feels-like" temperature is mechanically derived from actual temperature plus humidity and wind. Only `temp` was retained going forward; `hum` (VIF ≈ 1.1) and `windspeed` (VIF ≈ 1.16) show no meaningful collinearity and were both retained.
+The project verifies that the total rental count is exactly the sum of casual and registered rentals.
 
-<p align="center">
-  <img src="images/05_correlation_vif.png" width="720" alt="Correlation heatmaps and VIF">
-  <br><em>Figure 5. Pearson (left) and Spearman (center) correlations, and VIF diagnostics (right).</em>
-</p>
+---
 
-**Observation 6 — Every categorical factor tested is a statistically significant driver of demand, but effect sizes differ by an order of magnitude.** One-way ANOVA across hour, weekday, month, season, and weather situation returns F-statistics of 759.09, 3.49, 128.10, 409.18, and 127.17 respectively, all with p < 0.05 (weekday at p = 0.0019, all others effectively p ≈ 0). Statistical significance alone is not informative about magnitude here given the large sample size (n = 17,379); the F-statistics themselves are read as a rough importance ranking, and they reproduce the visual hierarchy already observed in Figures 2–4: hour dominates, season and month are strong, weather is moderate, weekday is comparatively marginal.
+# Workflow
 
-**Observation 7 — The temperature–demand and humidity–demand relationships are mostly monotone, with only mild curvature.** Binning each continuous predictor into deciles and comparing a linear to a quadratic OLS fit (Figure 6) shows that adding a quadratic term improves AIC for all three variables (temp: 226,976 → 226,975; hum: 228,172 → 228,152; windspeed: 229,934 → 229,875), with wind speed showing the largest *relative* R² gain (0.0087 → 0.0122) but temperature and humidity still explaining far more variance in absolute terms (R² ≈ 0.16 and 0.10 respectively vs. ≈ 0.01 for wind speed). The practical reading is that a linear specification is a reasonable first approximation for temperature and humidity, while wind speed's already-weak relationship is the one most likely to benefit from a non-linear model class.
+```text
+Raw Bike Sharing Dataset
+          │
+          ▼
+Data Loading & Quality Checks
+          │
+          ▼
+Descriptive / Exploratory Analysis
+          │
+          ├── Demand Distribution
+          ├── User Behaviour
+          ├── Temporal Patterns
+          └── Weather Patterns
+          │
+          ▼
+Statistical Analysis
+          │
+          ├── Pearson / Spearman Correlation
+          ├── VIF Multicollinearity
+          ├── ANOVA
+          ├── Welch's t-test
+          └── Non-linearity Analysis
+          │
+          ▼
+Regression Diagnostics
+          │
+          ├── OLS
+          ├── Poisson
+          └── Negative Binomial GLM
+          │
+          ▼
+Leakage-Aware Temporal Split
+          │
+          ├── Days 1–20 → Training
+          └── Days 21–end → Testing
+          │
+          ▼
+Temporal Feature Engineering
+          │
+          ├── 24-hour lag
+          ├── 168-hour lag
+          ├── 24-hour rolling mean
+          └── 168-hour rolling mean
+          │
+          ▼
+XGBoost Forecasting
+          │
+          ├── Base features
+          ├── Lag experiments
+          └── Rolling-window experiments
+          │
+          ▼
+Recursive Multi-Step Forecasting
+          │
+          ▼
+MAE / RMSE / R² Evaluation
+          │
+          ▼
+Actual vs. Predicted Analysis
+```
 
-<p align="center">
-  <img src="images/06_nonlinearity.png" width="720" alt="Non-linearity check across decile bins">
-  <br><em>Figure 6. Mean rental count across decile bins of temperature, humidity, and wind speed, with linear vs. quadratic fit comparison.</em>
-</p>
+---
 
-**Observation 8 — An OLS model is statistically misspecified for this outcome, and the residual diagnostics show exactly why.** An OLS specification (`cnt ~ temp + hum + windspeed + season + weathersit + workingday + holiday`) explains only R² = 0.283 of variance. More importantly, its residuals (Figure 7) fan out as fitted values increase — textbook heteroscedasticity — and depart visibly from the 45° reference line in the Q-Q plot, i.e., the residuals are not normally distributed. Both symptoms are expected consequences of forcing a non-negative, over-dispersed count variable into a homoscedastic-Gaussian-errors framework. A Poisson GLM was fit next as the natural count-regression alternative, but its deviance-to-degrees-of-freedom ratio of 117.17 (versus an expected value near 1 under the Poisson assumption) indicates severe overdispersion — the conditional variance of demand vastly exceeds its conditional mean, violating the Poisson model's core equidispersion assumption. A **Negative Binomial GLM**, which introduces a dispersion parameter to absorb this excess variance, was adopted as the preferred inferential model on these grounds.
+# 1. Data Loading and Quality Assessment
 
-<p align="center">
-  <img src="images/07_ols_diagnostics.png" width="620" alt="OLS residual diagnostics">
-  <br><em>Figure 7. OLS residuals vs. fitted values (heteroscedasticity, left) and Q-Q plot (non-normality, right).</em>
-</p>
+The analysis begins by loading the hourly and daily datasets and inspecting their structure.
 
-**Observation 9 — Under the Negative Binomial model, temperature and humidity are the dominant drivers, and their effects are large in multiplicative terms.** Reading the NB-GLM's log-link coefficients as incidence rate ratios (IRR = e^coefficient): moving `temp` across its full observed range multiplies expected demand by roughly 14.6× holding all else fixed (coefficient 2.680, p < 0.001), while `hum` has a strongly negative effect (coefficient -1.525, IRR ≈ 0.22× — a one-unit increase in normalized humidity is associated with roughly a 78% reduction in expected demand, again holding other covariates fixed). Wind speed is positive but small (IRR ≈ 1.21×, p = 0.004). Seasonal effects show winter demand elevated relative to spring (IRR ≈ 1.47×) and fall depressed relative to spring (IRR ≈ 0.81×) — a pattern that is at first counterintuitive but is best read net of the `temp` covariate already in the model, i.e., a residual calendar effect after controlling for the measured temperature of the hour. The OLS and NB models agree on the sign and relative ranking of every driver, which is reassuring for the qualitative conclusions even though the NB model is preferred for any quantitative statement about demand.
+The following checks are performed:
 
-### Task 3 — Demand Forecasting & Predictive Modeling
+* Dataset dimensions
+* Column names
+* Data types
+* Missing values
+* Duplicate observations
+* Descriptive statistics
+* Date range
 
-**Observation 10 — Switching from a statistical baseline to gradient-boosted trees roughly halves forecasting error.** Every XGBoost variant tested outperforms the Negative Binomial GLM baseline by a wide margin: the best XGBoost configuration achieves RMSE 59.52 against the NB-GLM's 110.80 (R² 0.892 vs. 0.626). Since both models have access to the same base feature set (hour, weekday, month, season, weather situation, temperature, humidity, wind speed, holiday, working-day, year), the gap is attributable to XGBoost's ability to model non-linear interactions — e.g., the effect of temperature on demand plausibly differs by hour-of-day and by season — that an additive GLM specification does not capture without manually engineered interaction terms.
+The date field is converted to a proper datetime representation before temporal analysis.
 
-**Observation 11 — Smoothed temporal features outperform single-point lags, but the marginal value of *any* temporal feature is smaller than expected.** Within the XGBoost family, the 168-hour (weekly) rolling mean is the single best feature addition (RMSE 59.52), narrowly ahead of the 24-hour rolling mean (59.80) and the no-lag base model (59.88) — but well ahead of the 168-hour point lag (69.05) and the 24-hour point lag (78.53). This ordering makes intuitive sense: a single lagged hour is noisy (it reflects one specific past hour's idiosyncratic conditions), while a rolling average smooths over a window and better represents the recent demand *regime*. The more striking observation, however, is how close the no-lag base model (RMSE 59.88) sits to the best rolling-feature model (RMSE 59.52) — a gap of well under 1%. This suggests that, under this particular multi-block train/test design, calendar and weather covariates alone already capture the large majority of predictable variance, and the leak-safe recursive construction of temporal features (necessary to avoid contaminating results with future information) adds only a modest further improvement rather than a transformative one.
+---
 
-<p align="center">
-  <img src="images/08_forecast_results.png" width="720" alt="Actual vs predicted forecast results">
-  <br><em>Figure 8. Actual vs. top-3 model predictions for a representative held-out test block, generated via the recursive multi-step, leak-safe forecasting procedure.</em>
-</p>
+# 2. Exploratory Data Analysis
 
-Figure 8 plots the actual series against the top-3 models' recursive predictions for the first test block. All three tracked models follow the daily double-peak commute rhythm closely, with the largest visible deviations occurring around the highest demand spikes — consistent with the general tendency of tree-based regressors trained on squared-error-adjacent objectives to slightly under-predict extreme values, since large deviations are comparatively rare in the training distribution.
+## 2.1 Distribution of Rental Demand
 
-## Discussion & Limitations
+The distribution of `cnt` is examined using both the original and log-transformed rental counts.
 
-The central empirical claim of this study — that hourly bike-share demand is a right-skewed, over-dispersed count process shaped hierarchically by hour-of-day, weather, and rider type — is supported consistently across the descriptive, inferential, and predictive stages of the analysis, which is a useful form of internal validation: the same variables identified as important in the ANOVA and NB-GLM stages (temperature, humidity, hour, season, weather situation) are the ones the forecasting model implicitly leans on for its strong no-lag performance. A few limitations are worth naming. First, the two-year window captures only one full seasonal cycle repeated twice, which limits how confidently the seasonal coefficients generalize beyond 2011–2012 system conditions. Second, the recursive forecasting procedure, while leak-safe, compounds its own prediction errors forward within a test block (an error in an early test hour can propagate into later lag/rolling features for that block); this is a deliberate and realistic trade-off for operational forecasting but means reported test errors are not directly comparable to a one-step-ahead evaluation. Third, weather variables in this dataset are contemporaneous with the rental hour, not a forecast — an operational deployment would need weather *forecasts* as inputs, which carry their own uncertainty not modeled here.
+The original hourly rental demand is strongly right-skewed. A `log1p` transformation reduces the skewness but does not completely normalize the distribution.
+
+This provides an early indication that a simple linear model may not adequately represent the response distribution.
+
+### Figure to add
+
+**Figure 1 — Hourly rental demand — raw vs. log-transformed**
+
+```text
+![Hourly rental demand](images/hourly-demand-distribution.png)
+```
+
+---
+
+## 2.2 Casual vs. Registered Users
+
+The analysis separates demand into:
+
+* Casual users
+* Registered users
+
+Average hourly demand reveals substantially different behavioral patterns.
+
+Registered-user demand shows a pronounced bimodal pattern around typical commuting hours, while casual-user demand follows a more gradual leisure-oriented pattern.
+
+The analysis also compares the two user groups between working and non-working days.
+
+### Figure to add
+
+**Figure 2 — Average hourly rentals by user type and total rentals by user type**
+
+```text
+![Casual vs registered users](images/casual-vs-registered.png)
+```
+
+---
+
+# 3. Temporal Demand Patterns
+
+Several temporal dimensions are investigated:
+
+* Hour of day
+* Working-day status
+* Day of week
+* Month
+* Season
+* Year
+
+## Hourly Pattern
+
+Working days show a distinct bimodal demand structure, while non-working days show a broader midday peak.
+
+## Monthly and Seasonal Pattern
+
+Average demand generally increases toward the warmer months and decreases toward the end of the year.
+
+Seasonal demand also differs substantially, with higher demand observed during summer and fall relative to spring.
+
+## Yearly Trend
+
+Daily aggregate demand shows an overall upward trend with recurring seasonal variation. Demand in 2012 is also generally higher than in 2011.
+
+### Figures to add
+
+**Figure 3 — Hourly demand by working-day status and average demand by weekday**
+
+```text
+![Temporal hourly patterns](images/workingday-weekday-patterns.png)
+```
+
+**Figure 4 — Average demand by month and rental demand by season**
+
+```text
+![Monthly and seasonal demand](images/month-season-patterns.png)
+```
+
+**Figure 5 — Daily total rental demand and demand by year**
+
+```text
+![Long-term demand trend](images/daily-yearly-demand.png)
+```
+
+---
+
+# 4. Weather Effects
+
+The following weather variables are investigated:
+
+* Weather situation
+* Temperature
+* Humidity
+* Windspeed
+
+Rental demand decreases across increasingly adverse weather conditions.
+
+Temperature shows a positive but nonlinear relationship with demand, while humidity exhibits a negative relationship.
+
+Windspeed shows comparatively weak visual association with rental demand.
+
+### Figures to add
+
+**Figure 6 — Rental demand by weather condition and temperature**
+
+```text
+![Weather and temperature](images/weather-temperature.png)
+```
+
+**Figure 7 — Rental demand vs. humidity and windspeed**
+
+```text
+![Humidity and windspeed](images/humidity-windspeed.png)
+```
+
+---
+
+# 5. Statistical Analysis
+
+## 5.1 Correlation and Multicollinearity
+
+Both **Pearson** and **Spearman** correlations are calculated for:
+
+```text
+temp
+atemp
+hum
+windspeed
+cnt
+```
+
+Variance Inflation Factor (VIF) is then used to investigate multicollinearity.
+
+A major finding is the extremely high correlation between:
+
+```text
+temp
+atemp
+```
+
+with a correlation of approximately **0.99**.
+
+Both variables also produce very high VIF values.
+
+Therefore, `atemp` is excluded from the forecasting feature set because it carries almost redundant information with `temp`.
+
+### Figure to add
+
+**Figure 8 — Pearson correlation, Spearman correlation, and VIF diagnostics**
+
+```text
+![Correlation and VIF diagnostics](images/correlation-vif.png)
+```
+
+---
+
+# 6. Categorical Variable Analysis
+
+One-way ANOVA is used to determine whether mean rental demand differs significantly across categories.
+
+| Variable          | F-statistic | p-value |
+| ----------------- | ----------: | ------: |
+| Hour of Day       |      759.09 | < 0.001 |
+| Weekday           |        3.49 | < 0.001 |
+| Month             |      128.10 | < 0.001 |
+| Season            |      409.18 | < 0.001 |
+| Weather Situation |      127.17 | < 0.001 |
+
+All evaluated categorical variables show statistically significant differences in rental demand.
+
+The largest between-group variation occurs for:
+
+* Hour of day
+* Season
+
+while weekday shows a comparatively smaller effect.
+
+---
+
+# 7. Non-Linearity Analysis
+
+The continuous weather variables are evaluated using both linear and quadratic regression models.
+
+| Variable    | Linear R² | Quadratic R² | Linear AIC | Quadratic AIC |
+| ----------- | --------: | -----------: | ---------: | ------------: |
+| Temperature |    0.1638 |       0.1640 |  226976.45 |     226974.74 |
+| Humidity    |    0.1043 |       0.1054 |  228172.44 |     228152.01 |
+| Windspeed   |    0.0087 |       0.0122 |  229934.45 |     229875.31 |
+
+The weather variables have relatively weak standalone explanatory power.
+
+Although quadratic terms provide small improvements in R² and AIC, the improvement is marginal.
+
+This indicates that nonlinear transformations of weather variables alone are unlikely to explain the majority of demand variation.
+
+### Figure to add
+
+**Figure 9 — Mean rental count across temperature, humidity, and windspeed bins**
+
+```text
+![Non-linearity analysis](images/nonlinearity-analysis.png)
+```
+
+---
+
+# 8. Binary Predictor Analysis
+
+Welch's t-test is used for:
+
+* `workingday`
+* `holiday`
+* `yr`
+
+The results show statistically significant differences in mean rental demand between the corresponding groups.
+
+These variables are therefore retained as candidate predictors for forecasting.
+
+---
+
+# 9. Regression Diagnostics
+
+Three statistical modeling perspectives are considered:
+
+### Ordinary Least Squares
+
+OLS is initially evaluated as a conventional regression baseline.
+
+Residual diagnostics indicate:
+
+* Heteroscedasticity
+* Non-normal residual behavior
+
+Therefore, the assumptions required for conventional OLS inference are not adequately satisfied.
+
+### Poisson Regression
+
+Because `cnt` is a count response, a Poisson model is also considered.
+
+However, the response exhibits substantial overdispersion, making the standard Poisson variance assumption inappropriate.
+
+### Negative Binomial GLM
+
+A **Negative Binomial GLM** is therefore used as the statistical count-regression baseline.
+
+The model uses the base temporal, calendar, and weather features.
+
+### Figure to add
+
+**Figure 10 — OLS residuals vs. fitted values and Q-Q plot**
+
+```text
+![Regression diagnostics](images/ols-diagnostics.png)
+```
+
+---
+
+# 10. Forecasting Feature Selection
+
+The forecasting target is:
+
+```python
+target = "cnt"
+```
+
+The base feature set is:
+
+```python
+base_features = [
+    "hr",
+    "workingday",
+    "weekday",
+    "mnth",
+    "season",
+    "weathersit",
+    "temp",
+    "hum",
+    "windspeed",
+    "holiday",
+    "yr"
+]
+```
+
+The following variables are excluded:
+
+```python
+excluded_features = [
+    "casual",
+    "registered",
+    "atemp"
+]
+```
+
+### Why?
+
+`casual` and `registered` are components of the target:
+
+```text
+cnt = casual + registered
+```
+
+Using them as predictors would directly expose the target components and create target leakage.
+
+`atemp` is excluded because of its extremely high multicollinearity with `temp`.
+
+---
+
+# 11. Leakage-Aware Temporal Train/Test Split
+
+A chronological partition is used rather than a random train/test split.
+
+For **every month**:
+
+```text
+Days 1–20  → Training
+Days 21–end → Testing
+```
+
+The resulting dataset contains approximately:
+
+```text
+Training observations: 11,460
+Testing observations:   5,919
+```
+
+This setup evaluates the models on later observations while preserving the temporal structure of the forecasting problem.
+
+Importantly, the test period is never randomly mixed into the training period.
+
+---
+
+# 12. Temporal Feature Engineering
+
+Historical demand features are introduced to provide the model with information about recent and weekly demand behavior.
+
+### 24-hour lag
+
+```text
+lag_24h
+```
+
+Represents rental demand at the same hour on the previous day.
+
+### 168-hour lag
+
+```text
+lag_168h
+```
+
+Represents rental demand at the same hour one week earlier.
+
+### 24-hour rolling mean
+
+```text
+roll_mean_24h
+```
+
+Represents the average demand over the preceding 24 hours.
+
+### 168-hour rolling mean
+
+```text
+roll_mean_168h
+```
+
+Represents the average demand over the preceding seven days.
+
+---
+
+# 13. Leakage Prevention During Temporal Feature Construction
+
+A key part of the forecasting pipeline is preventing future information from entering the model.
+
+Training-side temporal features are constructed only from observations that are available before the prediction point.
+
+During test forecasting:
+
+* Actual test-period target values are not used as future inputs.
+* Previously predicted values are recursively inserted into the demand history.
+* Each subsequent forecast therefore depends only on information available up to that point.
+
+Conceptually:
+
+```text
+Known historical observations
+          │
+          ▼
+Forecast t
+          │
+          ▼
+Insert prediction at t
+          │
+          ▼
+Forecast t+1
+          │
+          ▼
+Insert prediction at t+1
+          │
+          ▼
+Continue recursively
+```
+
+This produces a more realistic multi-step forecasting evaluation than using actual future test targets to construct lag features.
+
+---
+
+# 14. Models
+
+## Negative Binomial GLM
+
+The Negative Binomial model serves as the statistical baseline.
+
+It uses the base feature set and is trained only on the training observations.
+
+---
+
+## XGBoost Regressor
+
+The predictive forecasting model is an `XGBRegressor`.
+
+Configuration:
+
+```python
+n_estimators = 500
+max_depth = 6
+learning_rate = 0.05
+subsample = 0.8
+colsample_bytree = 0.8
+objective = "reg:squarederror"
+random_state = 42
+n_jobs = -1
+```
+
+The same XGBoost configuration is used across the temporal-feature experiments.
+
+---
+
+# 15. Forecasting Experiments
+
+Seven XGBoost feature configurations are evaluated:
+
+| Experiment       | Additional Temporal Features      |
+| ---------------- | --------------------------------- |
+| XGBoost Base     | None                              |
+| Lag-24 only      | `lag_24h`                         |
+| Lag-168 only     | `lag_168h`                        |
+| Rolling-24 only  | `roll_mean_24h`                   |
+| Rolling-168 only | `roll_mean_168h`                  |
+| All Lags         | `lag_24h`, `lag_168h`             |
+| All Rolling      | `roll_mean_24h`, `roll_mean_168h` |
+
+This experiment design allows the contribution of short-term and weekly historical information to be evaluated independently.
+
+---
+
+# 16. Evaluation Metrics
+
+Three complementary metrics are used.
+
+### Mean Absolute Error
+
+```text
+MAE = mean(|y - ŷ|)
+```
+
+MAE measures the average absolute forecasting error in rental units.
+
+### Root Mean Squared Error
+
+```text
+RMSE = sqrt(mean((y - ŷ)²))
+```
+
+RMSE gives greater weight to larger forecasting errors.
+
+### R²
+
+```text
+R² = 1 - SS_res / SS_tot
+```
+
+R² measures the proportion of variance explained by the predictions.
+
+---
+
+# 17. Results
+
+The final test-set results are:
+
+| Model / Feature Set   |         MAE |        RMSE |         R² |
+| --------------------- | ----------: | ----------: | ---------: |
+| **Rolling-168 only**  | **37.5429** | **59.5189** | **0.8920** |
+| Rolling-24 only       |     36.8419 |     59.8032 |     0.8909 |
+| XGBoost Base          |     36.9810 |     59.8848 |     0.8906 |
+| All Rolling (24+168)  |     37.9289 |     60.1755 |     0.8896 |
+| Lag-168 only          |     39.8493 |     69.0463 |     0.8546 |
+| Lag-24 only           |     44.2258 |     78.5319 |     0.8119 |
+| All Lags (24+168)     |     46.5679 |     81.8832 |     0.7956 |
+| Negative Binomial GLM |     68.1717 |    110.8033 |     0.6256 |
+
+### Main findings
+
+The forecasting experiments show several important patterns:
+
+1. **XGBoost substantially improves upon the Negative Binomial GLM baseline.**
+
+2. The best RMSE is obtained by the **168-hour rolling feature**, with:
+
+```text
+MAE  = 37.5429
+RMSE = 59.5189
+R²   = 0.8920
+```
+
+3. The base XGBoost model is already highly competitive:
+
+```text
+MAE  = 36.9810
+RMSE = 59.8848
+R²   = 0.8906
+```
+
+4. Rolling-window features perform better than single-point lag features in terms of RMSE.
+
+5. Adding both 24-hour and 168-hour lag features does not improve forecasting performance. In fact, the combined lag model produces substantially larger errors.
+
+6. The relatively small difference between the base XGBoost model and the rolling-feature models suggests that much of the predictable demand structure is already captured by the hour, calendar, weather, and year variables.
+
+---
+
+# 18. Actual vs. Predicted Forecasts
+
+The top three models are visualized against the actual demand for the first test block.
+
+The comparison uses:
+
+* Actual rental demand
+* Rolling-168 XGBoost
+* Rolling-24 XGBoost
+* Base XGBoost
+
+The visualization uses the recursive forecasting predictions rather than predictions generated using future test targets.
+
+### Figure to add
+
+**Figure 11 — Actual vs. predicted hourly counts for the top-3 models**
+
+```text
+![Actual vs predicted](images/actual-vs-predicted-top3.png)
+```
+
+---
+
+# 19. Key Technical Decisions
+
+| Decision                                | Rationale                                                         |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| Use `cnt` as target                     | Direct measure of total hourly demand                             |
+| Exclude `casual` and `registered`       | They directly constitute the target                               |
+| Exclude `atemp`                         | Highly redundant with `temp`                                      |
+| Preserve temporal ordering              | Forecasting requires future-aware evaluation                      |
+| Days 1–20 → train                       | Follows the assessment specification                              |
+| Days 21–end → test                      | Provides a held-out future-like period                            |
+| Use ANOVA for multi-group variables     | Tests differences across categorical groups                       |
+| Use Welch's t-test for binary variables | Avoids equal-variance assumption                                  |
+| Check Pearson + Spearman                | Screens both linear and monotonic relationships                   |
+| Check VIF                               | Detects multicollinearity                                         |
+| Compare linear and quadratic models     | Investigates potential nonlinear effects                          |
+| Use Negative Binomial GLM               | Addresses overdispersed count response                            |
+| Use XGBoost                             | Captures nonlinear interactions and complex feature relationships |
+| Use lag/rolling features                | Represents historical demand information                          |
+| Recursive test forecasting              | Prevents future target leakage                                    |
+
+---
+
+# 20. Reproducibility
+
+The project uses a fixed random seed where stochastic modeling is involved:
+
+```python
+random_state = 42
+```
+
+The XGBoost implementation also uses:
+
+```python
+n_jobs = -1
+```
+
+to utilize available CPU resources.
+
+The complete analysis, statistical tests, feature engineering, forecasting experiments, and evaluation are implemented in the accompanying Jupyter notebook.
+
+---
+
+# 21. Project Structure
+
+A recommended repository structure is:
+
+```text
+capital-bikeshare-demand-forecasting/
+│
+├── README.md
+│
+├── notebooks/
+│   └── part-01-code-aritra-sarkar.ipynb
+│
+├── images/
+│   ├── hourly-demand-distribution.png
+│   ├── casual-vs-registered.png
+│   ├── workingday-weekday-patterns.png
+│   ├── month-season-patterns.png
+│   ├── daily-yearly-demand.png
+│   ├── weather-temperature.png
+│   ├── humidity-windspeed.png
+│   ├── correlation-vif.png
+│   ├── nonlinearity-analysis.png
+│   ├── ols-diagnostics.png
+│   └── actual-vs-predicted-top3.png
+│
+└── requirements.txt
+```
+
+---
+
+# 22. Technologies Used
+
+* Python
+* Pandas
+* NumPy
+* Matplotlib
+* Seaborn
+* SciPy
+* Statsmodels
+* Scikit-learn
+* XGBoost
+* Jupyter Notebook
+
+---
+
+# 23. Conclusion
+
+This project develops a complete demand-analysis and forecasting workflow for hourly bike-sharing demand.
+
+The analysis first establishes the statistical characteristics of the response, identifies important temporal and weather patterns, investigates multicollinearity and nonlinear relationships, and evaluates appropriate count-regression assumptions.
+
+For forecasting, a strict temporal partition is combined with leakage-safe historical-demand features and recursive multi-step prediction.
+
+The final experiments demonstrate that tree-based forecasting substantially outperforms the Negative Binomial statistical baseline on the held-out test period. The strongest RMSE is obtained using the 168-hour rolling-demand feature, although the base XGBoost model performs nearly as well, indicating that the temporal and calendar variables already capture a large portion of the predictable demand structure.
+
+The complete implementation is available in the accompanying notebook.
+
+---
+
+## Author
+
+**Aritra Sarkar**
+BSc in Electrical & Electronic Engineering, CUET
+
+Research interests include:
+
+* Statistical Machine Learning
+* Computational Imaging
+* Biomedical Signal Processing
+* Machine Learning for Healthcare
+* Biomedical Sensing
+
+---
+
+## Reference
+
+Dataset:
+The raw data (`hour.csv`, `day.csv`) is not redistributed in this repository — download it from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset) and update the `DATA_PATH` variable at the top of the notebook to point to the folder containing it.
 
 ## Reproducing This Analysis
 
@@ -117,21 +850,7 @@ pip install -r requirements.txt
 jupyter notebook notebooks/bike_sharing_analysis.ipynb
 ```
 
-The raw data (`hour.csv`, `day.csv`) is not redistributed in this repository — download it from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset) and update the `DATA_PATH` variable at the top of the notebook to point to the folder containing it.
 
-## Repository Structure
-
-```
-bike-sharing-demand-analysis/
-├── notebooks/
-│   └── bike_sharing_analysis.ipynb   # Full pipeline: EDA → regression → forecasting
-├── reports/
-│   └── Bike_Sharing_Demand_Analysis_Memo.docx   # Technical memorandum
-├── images/                            # Figures referenced in this README
-├── requirements.txt
-├── LICENSE
-└── README.md
-```
 
 ## Tech Stack
 
